@@ -258,6 +258,10 @@ build_kernel() {
         cmdline="${cmdline#" "}"
     fi
 
+    # Keep automatic initramfs hooks and explicit kernel-install calls aligned.
+    sudo install -d /etc/kernel
+    printf '%s\n' "$DISTRO" | sudo tee /etc/kernel/entry-token >/dev/null
+
     conf_root="$(mktemp -d)"
     trap 'rm -rf "$conf_root"' RETURN
 
@@ -295,14 +299,14 @@ build_kernel() {
     echo "  dtb source:     $dtb_inst_dir/$dtb_name"
 
     {
-        sudo kernel-install --entry-token=machine-id remove "$krel" >/dev/null 2>&1 || true
+        sudo kernel-install --entry-token=os-id remove "$krel" >/dev/null 2>&1 || true
         if [[ "$DISTRO" == "fedora" ]]; then
             sudo env KERNEL_INSTALL_CONF_ROOT="$conf_root" \
-                kernel-install --verbose --make-entry-directory=yes --entry-token=machine-id add \
+                kernel-install --verbose --make-entry-directory=yes --entry-token=os-id add \
                 "$krel" "/boot/vmlinuz-$krel"
         else
             sudo env KERNEL_INSTALL_CONF_ROOT="$conf_root" \
-                kernel-install --verbose --make-entry-directory=yes --entry-token=machine-id add \
+                kernel-install --verbose --make-entry-directory=yes --entry-token=os-id add \
                 "$krel" "/boot/vmlinuz-$krel" "/boot/$initrd_src"
         fi
     } || {

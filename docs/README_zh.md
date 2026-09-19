@@ -58,8 +58,9 @@
 
 镜像和本地安装工作流现遵循标准 `kernel-install` + BLS 流程，而非手动编写 `systemd-boot` 条目。
 
-- BLS 条目名称和条目目录由 `kernel-install` 生成。使用默认 `--entry-token=machine-id` 时，文件名与 `/etc/machine-id` 绑定，如 `loader/entries/<machine-id>-<kernel-release>.conf`。
-- 复制到 ESP 的内核、initrd/initramfs 和 DTB 文件也会由发行版钩子自动放入匹配的 `<entry-token>/<kernel-release>/` 目录。
+- BLS 条目使用发行版名称：`loader/entries/fedora-<kernel-release>.conf` 或 `loader/entries/ubuntu-<kernel-release>.conf`。`/etc/kernel/entry-token` 持久保存名称，供升级及 initramfs 钩子读取；显式调用使用 `--entry-token=os-id`。
+- ESP 上的内核、initrd/initramfs 和 DTB 放在 `fedora/<kernel-release>/` 或 `ubuntu/<kernel-release>/`，与系统自身的 machine-id 分开。
+- 迁移时保留旧的 machine-id 启动项供回退，确认新项可启动后再清理。同一 ESP 上安装两份同发行版系统时，需要不同标识。详见 [启动布局](boot-layout.md)。
 - 在 `/boot` 中还会保留一份 DTB 的兼容副本，方便用户后续切换到 GRUB。
 - Ubuntu DTB 安装在 `/usr/lib/linux-image-<kernel-release>/qcom/` 供 `kernel-install` 使用，另有 `/boot/dtb-<kernel-release>` 兼容副本。
 - Fedora DTB 安装在 `/usr/lib/modules/<kernel-release>/dtb/qcom/` 供 `kernel-install` 使用，另有 `/boot/dtb-<kernel-release>/qcom/` 兼容副本。
