@@ -16,7 +16,7 @@
 | --- | --- |
 | 上游分支 | gregkh/linux `linux-rolling-stable` |
 | 上游提交 | `d396b05e7e39b0ed6f6d5553fbaf174228e18bdf`，Merge v7.2.6 |
-| 下游提交 | `3a9f5e6c574c096d12558093167a7ca0f85b431b` |
+| 下游提交 | `4a73e255896071876aa7e192cd401a6b457c745b` |
 | Fedora / Ubuntu | 44 / 26.04 |
 | EL2 | 未设置提交；显式请求会报错 |
 
@@ -42,7 +42,7 @@ KERN_SRC=/absolute/path/to/linux ./build.sh kernel
 
 - 导入原补丁作者信息。PDC 映射补丁通过反向应用确认已在基线中，单独移除；不以“冲突”判定补丁已上游。
 - EC 设备树保留上游 GPIO 103 修正，对应 PDC 215。
-- 根据原重启规划纠正视频路线：next 去除旧 Venus 系列，移植上游 Iris DTS 并启用 stable Iris 驱动；解码及编码均未实测。补入 right-0903 force-GSI 实现，触摸算法替换仍待审查。详见 [内核审计](kernel-audit.md)。
+- 根据原重启规划纠正视频路线：next 去除旧 Venus 系列，移植上游 Iris DTS 并启用 stable Iris 驱动；解码及编码均未实测。补入 right-0903 force-GSI 实现，已吸收 vahiru 的 SPI 重试和预测位置跳点修复，整体算法替换仍待审查。详见 [内核审计](kernel-audit.md)。
 - `CONFIG_INPUT_UINPUT=m` 已在配置中；PR #2 的用户空间部分未在本轮引入。
 - `9420138` 删除的旧 UCSI、q6apm 改动与新基线冲突，尚待语义审查；不能宣称已上游或功能等价。
 - EL2 仅有部分移植工作：remoteproc 异步 attach 与 q6v5 running 状态变更需要继续审查，不能发布。
@@ -50,9 +50,9 @@ KERN_SRC=/absolute/path/to/linux ./build.sh kernel
 
 ## 已验证与发布门槛
 
-已验证：gaokun3 defconfig 生成、内核 Kbuild 设备树编译，以及上一版 Himax 触摸、EC、电池驱动对象交叉编译；当前 Iris 全目录对象与 SPI GENI 对象交叉编译通过；systemd 255 的实际 kernel-install / BLS 插件测试通过。
+已验证：gaokun3 defconfig 生成、内核 Kbuild 设备树编译，以及 EC、电池驱动对象交叉编译；当前 Iris 全目录对象与 SPI GENI 对象交叉编译通过；Himax 对象 W=1 构建无警告，SPI 故障注入与追踪回归测试通过；systemd 255 的实际 kernel-install / BLS 插件测试通过。
 
-尚未完成：完整 Image/modules 链接、DEB/RPM 打包、Fedora/Ubuntu 镜像构建及设备启动。还需检查 Fedora SELinux 与当前 AppArmor 配置的兼容性，并实测触摸、60/120 Hz、音频、无线、蓝牙、充电、USB-C、休眠唤醒、视频解码、升级和回退。
+上一版候选已通过完整内核与 DEB/RPM 构建，见 [内核审计](kernel-audit.md)。当前精确提交仍需完整 CI 验证；Fedora/Ubuntu 镜像构建及设备启动尚未完成。新镜像已显式选择 Fedora SELinux / Ubuntu AppArmor，仍需验证策略加载，并实测触摸、60/120 Hz、音频、无线、蓝牙、充电、USB-C、休眠唤醒、视频解码、升级和回退。
 
 先完成上述检查，再合并迁移 PR、发布 release。EL2 单独推进，不作为普通内核已完成的功能。
 

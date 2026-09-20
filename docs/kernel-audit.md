@@ -8,7 +8,7 @@
 - 上一版候选：`716c79802092955347a41975b8f6e14020321478`。
 - right-0903 main：`7463df37160bdecc3f2609d72f9a69cfa2b390e4`。
 - right-0903 ts/caidj0：`5c868c89d36992bf98e48e3c37f525716b6c74d1`（2026-03-31）。
-- vahiru/gaokun-android：`823585fee8f2b820cdafd0fdc24a6bcd864e0dd8`。只确认了近期触摸优化记录，尚未把其算法代码移入内核。
+- vahiru/gaokun-android：`823585fee8f2b820cdafd0fdc24a6bcd864e0dd8`。已按原作者导入 0038、0040，保留现有驱动结构和默认参数。
 
 ## 当前决定与证据
 
@@ -30,16 +30,32 @@
 | EL2 | 独立推进、默认关闭 | 没有已验证的 EL2 SHA，不能发布为普通内核功能 |
 | 旧 touchscreen tuner | 待算法选择后决定 | 不能在旧算法仍在使用时直接删除对应工具 |
 
-## 触摸屏：来源已确认，替换尚未完成
+## 触摸屏：已吸收两项独立修复，整体替换仍待评估
 
 right main 的传输/生命周期改动包括 `0bbd872`（burst 模式）、`accd3ec`（启停顺序）以及 4 月的坐标缩放和固件处理。`ts/caidj0` 停在 3 月，包含多点追踪、panel follower 串行化和重新加载逻辑，不能当成包含 main 后续修复的整份最新版。
 
-下一轮应独立审查 main 传输层与 caidj0 tracking 的差异，再决定是否引入 vahiru 的算法改动。迁移时必须一起检查 DTS 坐标范围（现有 2560×1600，right 为 25600×16000）、坐标变换、GPIO174 的模式选择、reset/panel follower 顺序、IRQ 和固件版本。编译通过不能代替多指、快速滑动、掌触和休眠恢复实测。
+已从 vahiru 固定版本中吸收两项改动，保留 Vahiru 作者，简化注释并明确本项目默认值：
+
+- `c78899cdd8bd`：SPI 读取的 TX/RX 共用缓冲区，每次重试前重建命令；为读头预留 3 字节，使 5132 字节事件栈一次读取完成。
+- `4b44e0cdac8d`：跳点检测使用预测位置偏差，避免连续快滑反复重建触点。本项目的 `track_jump_dist2` 仍默认关闭，并非原 fork 的 6400 预设。
+- `302b44468fcc`：修正两个已有 kernel-doc 注释，使 Himax 对象 `W=1` 构建无警告。
+
+软件回归使用实际 C 函数：模拟 RX 覆写共享缓冲区后失败，原版后续重试均失败，修复后可在一次/两次失败后恢复，连续三次失败仍返回 EIO；别名输出缓冲区也通过。完整事件栈从两次传输变为一次。追踪测试用 120 帧、80/81 单位每帧，分别开关平滑：修复后均在两帧 debounce 后报告 118 帧；真正横向跳点仍释放旧 slot。默认关闭跳点检测时结果不变。测试没有验证 SPI 硬件或触摸手感。
+
+没有导入 Android 专用调参、调试接口或 zone 淘汰策略；后者可能在掌触区域占满列表时挤掉手指，需要单独验证。
+
+后续独立审查 main 传输层与 caidj0 tracking 的差异。迁移时必须一起检查 DTS 坐标范围（现有 2560×1600，right 为 25600×16000）、坐标变换、GPIO174 的模式选择、reset/panel follower 顺序、IRQ 和固件版本。编译通过不能代替多指、快速滑动、掌触和休眠恢复实测。
 
 ## 验证边界
 
 上一版 `716c798` 已通过完整内核编译及 DEB/RPM 打包（[Actions 35481647905](https://github.com/gaokun3/buildbot/actions/runs/35481647905)）；该结果验证双仓库构建流程，不能替代新 Iris 候选验证。
 
+Iris/GSI 候选的完整构建见 [Actions 35495246617](https://github.com/gaokun3/buildbot/actions/runs/35495246617)，触摸修复加入后需按新 SHA 重新验证。
+
 Iris/GSI 候选已通过 defconfig、Gaokun3 DTB、Iris 全目录对象及 `qcom-iris.o` 链接、SPI GENI 对象交叉编译。反编译 DTB 已确认 Iris compatible、Huawei firmware-name 和启用状态。尚未证明完整内核/软件包构建、设备探测、硬件解码或编码可用。
 
 正式替换 gaokun3 前，审查 `git range-diff`，完成完整构建和实机测试；发布后使用不可变 tag，并记录上游 base SHA。CI 不自动 rebase 或 force-push。
+
+## 发行版策略
+
+共享 defconfig 同时编入 SELinux 和 AppArmor，但 `CONFIG_LSM` 默认只有 AppArmor。新建 Fedora/Ubuntu 镜像在内核命令行中显式使用 `lsm=` 选择对应策略。已有系统升级沿用用户的命令行，不能据此认为旧镜像已修复；实机验收应检查 `/sys/kernel/security/lsm`，Fedora 还需确认策略加载与文件标签。
