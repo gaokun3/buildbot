@@ -22,7 +22,9 @@
 | force-GSI `fb123793bfdc5a58f94aaf54ae06b47c9c797b7e` | 已移植 | 修复 DTS 已声明但 SPI 驱动未读取属性的问题；来自 right 当前 recommended |
 | 旧 PDC mapping 补丁 | 不恢复 | 基线已有所需映射；触摸 IRQ 的独立 workaround 仍保留 |
 | right recommended 0005、0012、0014、0015、0018、0019、0020、0022、0023 | 已覆盖 | 在 next 上逐个反向应用检查通过；不重复导入 |
-| right recommended 0002、0010、0016、0021 | 继续语义比对 | 反向检查未通过，不能据此判为缺失或已上游；旧候选有同主题实现 |
+| right recommended 0016、0021 | 已导入同一补丁 | 导入提交的 stable patch-id 与 right 当前补丁一致；后续上下文变化导致反向检查失败，不需重复导入 |
+| right recommended 0002 | 语义已覆盖 | 归一化 `0x0` / `0` 后 patch-id 一致；audio PD 内存与 VMID 改动相同 |
+| right recommended 0010 | 保留现有 DSC 替代实现 | 两种宽度计算并不等价，见下一项 |
 | DSC width | 暂保留现有实现 | 当前由 `dce_bytes_per_line` 推导，right 0010 使用整数 bpp。不是同一实现，不能仅因来源更新而覆盖 |
 | DSC 默认启用、backlight regulator | 保留并待实机评估 | 基线 DSC 默认 false；基线供电列表无 bl，而板级 DTS 使用 GPIO0 的 bl-supply。不能按“panel 已上游”直接删除这两个行为差异 |
 | EC / UCSI | 主线实现为本体 | EC DTS 保留 GPIO 103 / PDC 215；旧 UCSI、q6apm 删除项仍需语义审查 |
@@ -59,3 +61,9 @@ Iris/GSI 候选已通过 defconfig、Gaokun3 DTB、Iris 全目录对象及 `qcom
 ## 发行版策略
 
 共享 defconfig 同时编入 SELinux 和 AppArmor，但 `CONFIG_LSM` 默认只有 AppArmor。新建 Fedora/Ubuntu 镜像在内核命令行中显式使用 `lsm=` 选择对应策略。Fedora 显式安装 targeted policy 和 policycoreutils，并在镜像组装末尾用 setfiles 为新建文件打标签；该步骤仍待完整镜像 CI 验证。已有系统升级沿用用户的命令行，不能据此认为旧镜像已修复；实机验收应检查 `/sys/kernel/security/lsm`，Fedora 还需确认策略加载与文件标签。
+
+## EC 探测错误返回
+
+新增 `1ab894b42dea`：获取 enable GPIO 返回错误时立即返回 `dev_err_probe()`，避免吞掉 `-EPROBE_DEFER` 后继续注册设备。此问题来自导入的 EC enable pin 补丁。实际 probe 前段的主机故障注入已确认原版吞掉 `-EPROBE_DEFER` / `-EIO`，修复后正确返回；可选 GPIO 不存在时仍继续。EC 对象 `W=1` 构建和 checkpatch 均无警告，新 SHA 需重新完成完整 CI。
+
+Fedora 镜像流程先使用已通过打包的 `4a73e255` 做集成验证（[Actions 35511937857](https://github.com/gaokun3/buildbot/actions/runs/35511937857)）；这次镜像尚不包含上述 EC 修复。
