@@ -217,7 +217,7 @@ jobs:
                 --exclude="'"$EXCLUDED_PACKAGES"'" \
                 install \
                 @core @standard "${desktop_packages[@]}" \
-                systemd-boot-unsigned alsa-ucm \
+                systemd-boot-unsigned alsa-ucm selinux-policy-targeted policycoreutils \
                 langpacks-en langpacks-zh_CN \
                 google-noto-color-emoji-fonts google-noto-emoji-fonts \
                 alsa-utils pipewire-utils \

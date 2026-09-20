@@ -50,12 +50,12 @@ right main 的传输/生命周期改动包括 `0bbd872`（burst 模式）、`acc
 
 上一版 `716c798` 已通过完整内核编译及 DEB/RPM 打包（[Actions 35481647905](https://github.com/gaokun3/buildbot/actions/runs/35481647905)）；该结果验证双仓库构建流程，不能替代新 Iris 候选验证。
 
-Iris/GSI 候选的完整构建见 [Actions 35495246617](https://github.com/gaokun3/buildbot/actions/runs/35495246617)，触摸修复加入后需按新 SHA 重新验证。
+Iris/GSI 候选 `3a9f5e6c` 已通过完整内核与 DEB/RPM 打包，见 [Actions 35495246617](https://github.com/gaokun3/buildbot/actions/runs/35495246617)，触摸修复加入后需按新 SHA 重新验证。
 
-Iris/GSI 候选已通过 defconfig、Gaokun3 DTB、Iris 全目录对象及 `qcom-iris.o` 链接、SPI GENI 对象交叉编译。反编译 DTB 已确认 Iris compatible、Huawei firmware-name 和启用状态。尚未证明完整内核/软件包构建、设备探测、硬件解码或编码可用。
+Iris/GSI 候选已通过 defconfig、Gaokun3 DTB、Iris 全目录对象及 `qcom-iris.o` 链接、SPI GENI 对象交叉编译。反编译 DTB 已确认 Iris compatible、Huawei firmware-name 和启用状态。新增触摸修复后需完成完整内核/软件包构建；设备探测、硬件解码或编码尚未实测。
 
 正式替换 gaokun3 前，审查 `git range-diff`，完成完整构建和实机测试；发布后使用不可变 tag，并记录上游 base SHA。CI 不自动 rebase 或 force-push。
 
 ## 发行版策略
 
-共享 defconfig 同时编入 SELinux 和 AppArmor，但 `CONFIG_LSM` 默认只有 AppArmor。新建 Fedora/Ubuntu 镜像在内核命令行中显式使用 `lsm=` 选择对应策略。已有系统升级沿用用户的命令行，不能据此认为旧镜像已修复；实机验收应检查 `/sys/kernel/security/lsm`，Fedora 还需确认策略加载与文件标签。
+共享 defconfig 同时编入 SELinux 和 AppArmor，但 `CONFIG_LSM` 默认只有 AppArmor。新建 Fedora/Ubuntu 镜像在内核命令行中显式使用 `lsm=` 选择对应策略。Fedora 显式安装 targeted policy 和 policycoreutils，并在镜像组装末尾用 setfiles 为新建文件打标签；该步骤仍待完整镜像 CI 验证。已有系统升级沿用用户的命令行，不能据此认为旧镜像已修复；实机验收应检查 `/sys/kernel/security/lsm`，Fedora 还需确认策略加载与文件标签。

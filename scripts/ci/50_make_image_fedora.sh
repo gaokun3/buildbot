@@ -186,6 +186,11 @@ timeout 5
 console-mode keep
 editor no
 EOF
+
+# Label files created by DNF and this script before the first SELinux boot.
+# The host uses a different LSM, so ignore its non-seclabel mount list.
+setfiles -F -m -e /dev -e /proc -e /sys -e /run -e /boot/efi \
+  /etc/selinux/targeted/contexts/files/file_contexts /
 CHROOT_EOF
 
 if [[ "$BUILD_EL2" == "true" && -n "$KREL_EL2" ]]; then
