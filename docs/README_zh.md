@@ -4,7 +4,7 @@
 
 面向华为 MateBook E Go 2023（代号 `gaokun3`）、基于高通骁龙 8cx Gen3（`SC8280XP`）平台的 Linux 镜像构建脚本、工具和固件。内核源码、驱动、设备树及配置在独立的下游内核仓库维护。
 
-**迁移草案，尚不可发布。** 仓库为 [gaokun3/linux](https://github.com/gaokun3/linux/tree/gaokun3) 与 [gaokun3/buildbot](https://github.com/gaokun3/buildbot/tree/next)；固定的内核候选提交已推送，仍需完整构建和硬件验证，EL2 已禁用。参见 [迁移记录与检查项](migration.md)。
+**迁移草案，尚不可发布。** 仓库为 [gaokun3/linux](https://github.com/gaokun3/linux/tree/gaokun3-next) 与 [gaokun3/buildbot](https://github.com/gaokun3/buildbot/tree/next)；固定的内核候选提交已推送，仍需完整构建和硬件验证，EL2 已禁用。参见 [迁移记录与检查项](migration.md)。
 
 `build.env` 固定内核 SHA 与发行版版本；`./build.sh kernel|debs|rpms` 是本地入口，镜像组装暂仍由 CI 执行。
 
@@ -82,3 +82,5 @@
 - [TravMurav/slbounce](https://github.com/TravMurav/slbounce)：在 Gaokun3 上启用 EL2 支持和安全启动的 UEFI 应用程序。
 - [TravMurav/linux](https://github.com/TravMurav/linux/tree/x13s-6.18-v1.1-cxsd)：包含一些 sc8280xp 平台 EL2 支持补丁的 Linux 内核树。
 - [stephan-gh/qebspil](https://github.com/stephan-gh/qebspil)：在高通平台上预启动 DSP 固件的 UEFI 应用程序，可在引导链中用于启动 Linux 之前。
+
+内核逐项审计与剩余工作：[kernel-audit.md](kernel-audit.md)。

@@ -1,10 +1,10 @@
 # gaokun3 双仓库迁移记录
 
-这是迁移候选，不能作为已验证发行版发布。两个目标仓库已建立，内核 `gaokun3` 分支已发布下表的精确提交，buildbot 迁移位于 `next`。原仓库 PR #7 保留迁移评审记录。
+这是迁移候选，不能作为已验证发行版发布。两个目标仓库已建立，内核 `gaokun3-next` 分支已发布下表的 Iris/GSI 候选精确提交，buildbot 迁移位于 `next`。原仓库 PR #7 保留迁移评审记录。
 
 ## 仓库边界
 
-- `gaokun3/linux`：从 `gregkh/linux` fork，`gaokun3` 分支维护设备提交；DTS、驱动和 `gaokun3_defconfig` 都在内核树内。
+- `gaokun3/linux`：从 `gregkh/linux` fork，`gaokun3` 维护设备提交，`gaokun3-next` 审查 Iris/GSI 候选；DTS、驱动和 `gaokun3_defconfig` 都在内核树内。
 - `gaokun3/buildbot`：Bash 构建入口、打包、镜像、固件及用户空间工具。GitHub Actions 负责调度。镜像组装仍包含工作流内联步骤，尚未全部抽成脚本。
 - 移除 buildbot 的 `patches/`、`drivers/`、`dts/`、`defconfig/`。原件保留在迁移前提交 `315528c028843794ccd0f3d9dab373b03033150f`，不在构建时再次应用。
 
@@ -16,7 +16,7 @@
 | --- | --- |
 | 上游分支 | gregkh/linux `linux-rolling-stable` |
 | 上游提交 | `d396b05e7e39b0ed6f6d5553fbaf174228e18bdf`，Merge v7.2.6 |
-| 下游提交 | `716c79802092955347a41975b8f6e14020321478` |
+| 下游提交 | `3a9f5e6c574c096d12558093167a7ca0f85b431b` |
 | Fedora / Ubuntu | 44 / 26.04 |
 | EL2 | 未设置提交；显式请求会报错 |
 
@@ -42,7 +42,7 @@ KERN_SRC=/absolute/path/to/linux ./build.sh kernel
 
 - 导入原补丁作者信息。PDC 映射补丁通过反向应用确认已在基线中，单独移除；不以“冲突”判定补丁已上游。
 - EC 设备树保留上游 GPIO 103 修正，对应 PDC 215。
-- Venus 使用 PR #5 的适配系列，选中 VENUS、停用 IRIS，并启用板级固件节点；硬件解码尚未实测。
+- 根据原重启规划纠正视频路线：next 去除旧 Venus 系列，移植上游 Iris DTS 并启用 stable Iris 驱动；解码及编码均未实测。补入 right-0903 force-GSI 实现，触摸算法替换仍待审查。详见 [内核审计](kernel-audit.md)。
 - `CONFIG_INPUT_UINPUT=m` 已在配置中；PR #2 的用户空间部分未在本轮引入。
 - `9420138` 删除的旧 UCSI、q6apm 改动与新基线冲突，尚待语义审查；不能宣称已上游或功能等价。
 - EL2 仅有部分移植工作：remoteproc 异步 attach 与 q6v5 running 状态变更需要继续审查，不能发布。
@@ -50,7 +50,7 @@ KERN_SRC=/absolute/path/to/linux ./build.sh kernel
 
 ## 已验证与发布门槛
 
-已验证：gaokun3 defconfig 生成、内核 Kbuild 设备树编译，以及 Himax 触摸、Venus core、EC、电池驱动对象交叉编译；systemd 255 的实际 kernel-install / BLS 插件测试通过。
+已验证：gaokun3 defconfig 生成、内核 Kbuild 设备树编译，以及上一版 Himax 触摸、EC、电池驱动对象交叉编译；当前 Iris 全目录对象与 SPI GENI 对象交叉编译通过；systemd 255 的实际 kernel-install / BLS 插件测试通过。
 
 尚未完成：完整 Image/modules 链接、DEB/RPM 打包、Fedora/Ubuntu 镜像构建及设备启动。还需检查 Fedora SELinux 与当前 AppArmor 配置的兼容性，并实测触摸、60/120 Hz、音频、无线、蓝牙、充电、USB-C、休眠唤醒、视频解码、升级和回退。
 

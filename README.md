@@ -4,7 +4,7 @@ English | [中文](docs/README_zh.md)
 
 Build scripts, tools, and firmware for Linux images targeting the Huawei MateBook E Go 2023 (codename `gaokun3`) based on Qualcomm Snapdragon 8cx Gen3 (`SC8280XP`).
 
-**Migration draft, not ready for release.** The repositories are [gaokun3/linux](https://github.com/gaokun3/linux/tree/gaokun3) and [gaokun3/buildbot](https://github.com/gaokun3/buildbot/tree/next). The pinned kernel candidate is published; full builds and hardware validation remain required. EL2 is disabled pending migration. See the [migration checklist](docs/migration.md).
+**Migration draft, not ready for release.** The repositories are [gaokun3/linux](https://github.com/gaokun3/linux/tree/gaokun3-next) and [gaokun3/buildbot](https://github.com/gaokun3/buildbot/tree/next). The pinned kernel candidate is published; full builds and hardware validation remain required. EL2 is disabled pending migration. See the [migration checklist](docs/migration.md).
 
 `build.env` pins the kernel SHA and distribution versions. Use `./build.sh kernel|debs|rpms` locally; image assembly currently runs through CI. Drivers, DTS and defconfig belong in the downstream kernel tree.
 
@@ -82,3 +82,5 @@ For an overview of hardware support status on the device, see [right-0903/linux-
 - [TravMurav/slbounce](https://github.com/TravMurav/slbounce) : A UEFI application that enables EL2 support and Secure Launch on Gaokun3.
 - [TravMurav/linux](https://github.com/TravMurav/linux/tree/x13s-6.18-v1.1-cxsd) : A Linux kernel tree with some useful patches for EL2 support on sc8280xp platforms.
 - [stephan-gh/qebspil](https://github.com/stephan-gh/qebspil) : A UEFI application that pre-launches the DSP firmware on Qualcomm platforms, which can be used in the boot chain before launching Linux.
+
+Kernel audit and remaining work: [kernel-audit.md](docs/kernel-audit.md).
