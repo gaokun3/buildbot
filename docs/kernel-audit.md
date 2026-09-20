@@ -24,7 +24,7 @@
 | right recommended 0005、0012、0014、0015、0018、0019、0020、0022、0023 | 已覆盖 | 在 next 上逐个反向应用检查通过；不重复导入 |
 | right recommended 0002、0010、0016、0021 | 继续语义比对 | 反向检查未通过，不能据此判为缺失或已上游；旧候选有同主题实现 |
 | DSC width | 暂保留现有实现 | 当前由 `dce_bytes_per_line` 推导，right 0010 使用整数 bpp。不是同一实现，不能仅因来源更新而覆盖 |
-| DSC 默认启用、backlight regulator | 待实机删减 | 仍是对主线 panel 的小改动；未保留旧 panel 驱动副本 |
+| DSC 默认启用、backlight regulator | 保留并待实机评估 | 基线 DSC 默认 false；基线供电列表无 bl，而板级 DTS 使用 GPIO0 的 bl-supply。不能按“panel 已上游”直接删除这两个行为差异 |
 | EC / UCSI | 主线实现为本体 | EC DTS 保留 GPIO 103 / PDC 215；旧 UCSI、q6apm 删除项仍需语义审查 |
 | HI846 4 个提交及 camera DTS | 待拆到可选功能 | 当前仍在候选中；尚未完成最小普通内核的拆分 |
 | EL2 | 独立推进、默认关闭 | 没有已验证的 EL2 SHA，不能发布为普通内核功能 |
@@ -50,9 +50,9 @@ right main 的传输/生命周期改动包括 `0bbd872`（burst 模式）、`acc
 
 上一版 `716c798` 已通过完整内核编译及 DEB/RPM 打包（[Actions 35481647905](https://github.com/gaokun3/buildbot/actions/runs/35481647905)）；该结果验证双仓库构建流程，不能替代新 Iris 候选验证。
 
-Iris/GSI 候选 `3a9f5e6c` 已通过完整内核与 DEB/RPM 打包，见 [Actions 35495246617](https://github.com/gaokun3/buildbot/actions/runs/35495246617)，触摸修复加入后需按新 SHA 重新验证。
+Iris/GSI 候选 `3a9f5e6c` 已通过完整内核与 DEB/RPM 打包，见 [Actions 35495246617](https://github.com/gaokun3/buildbot/actions/runs/35495246617)，触摸修复后的 `4a73e255` 也已通过 [完整内核与 DEB/RPM 构建](https://github.com/gaokun3/buildbot/actions/runs/35495880873)。
 
-Iris/GSI 候选已通过 defconfig、Gaokun3 DTB、Iris 全目录对象及 `qcom-iris.o` 链接、SPI GENI 对象交叉编译。反编译 DTB 已确认 Iris compatible、Huawei firmware-name 和启用状态。新增触摸修复后需完成完整内核/软件包构建；设备探测、硬件解码或编码尚未实测。
+Iris/GSI 候选已通过 defconfig、Gaokun3 DTB、Iris 全目录对象及 `qcom-iris.o` 链接、SPI GENI 对象交叉编译。反编译 DTB 已确认 Iris compatible、Huawei firmware-name 和启用状态。设备探测、硬件解码或编码尚未实测。
 
 正式替换 gaokun3 前，审查 `git range-diff`，完成完整构建和实机测试；发布后使用不可变 tag，并记录上游 base SHA。CI 不自动 rebase 或 force-push。
 
