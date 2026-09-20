@@ -54,7 +54,7 @@ KERN_SRC=/absolute/path/to/linux ./build.sh kernel
 
 上一版候选已通过完整内核与 DEB/RPM 构建，见 [内核审计](kernel-audit.md)。此前 `4a73e255` 已通过 [完整内核及 DEB/RPM CI](https://github.com/gaokun3/buildbot/actions/runs/35495880873)；随后新增 EC GPIO 探测错误返回修复，需按新 SHA 验证。Fedora/Ubuntu 镜像构建及设备启动尚未完成。新镜像已显式选择 Fedora SELinux / Ubuntu AppArmor，仍需验证策略加载，并实测触摸、60/120 Hz、音频、无线、蓝牙、充电、USB-C、休眠唤醒、视频解码、升级和回退。
 
-先完成上述检查，再合并迁移 PR、发布 release。EL2 单独推进，不作为普通内核已完成的功能。
+实机结果按 [验收清单](hardware-checklist.md) 记录。先完成上述检查，再合并迁移 PR、发布 release。EL2 单独推进，不作为普通内核已完成的功能。
 
 ## 构建验证
 
