@@ -60,4 +60,13 @@ KERN_SRC=/absolute/path/to/linux ./build.sh kernel
 
 `Validate kernel packages` 在 `next` 的构建相关改动后运行，也可手动触发。它复用现有 DEB/RPM 工作流，在原生 ARM64 runner 上编译完整 Image、modules 和 DTB，然后打包。包及源码清单保存在 Actions artifacts 中 7 天。
 
-两个打包工作流新增 `publish_release`，默认 `false`。仅显式开启时才创建 GitHub release；镜像发布流程需要下载软件包，因此明确传入 `true`。构建成功不代表设备启动和升级测试通过。
+两个打包工作流的 `publish_release` 默认 `false`。Fedora 镜像工作流同样默认不发布，可通过 `package_run_id` 下载一次打包 CI 的 RPM artifacts，也可设置 `rebuild_package_rpms` 在同一工作流重建；未指定这两项时查找既有 package release。所有路径都核对 manifest 的内核 SHA、标签及 EL2 状态。只有显式启用 `publish_release` 才发布 Fedora 镜像及本次重建的软件包。Ubuntu 镜像仍使用原有发布路径。
+
+例如在 `next` 分支验证 Fedora 镜像：
+
+```bash
+gh workflow run fedora-gaokun3-release.yml --repo gaokun3/buildbot --ref next \
+  -f package_run_id=PACKAGE_CI_RUN_ID -f publish_release=false
+```
+
+构建成功不代表设备启动和升级测试通过。

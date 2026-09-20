@@ -3,6 +3,15 @@ name: Build Image - Fedora Gaokun3
 on:
   workflow_dispatch:
     inputs:
+      package_run_id:
+        description: Successful package CI run to use (empty searches releases)
+        required: false
+        type: string
+      publish_release:
+        description: Publish packages and image as GitHub releases
+        required: true
+        default: false
+        type: boolean
       desktop_environment:
         description: Desktop environment packages or groups (space-separated)
         required: true
@@ -28,13 +37,14 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   build-package-rpms:
     if: ${{ github.event.inputs.rebuild_package_rpms == 'true' }}
     uses: ./.github/workflows/gaokun3-package-rpms.yml
     with:
-      publish_release: true
+      publish_release: ${{ inputs.publish_release }}
       build_el2: ${{ github.event.inputs.build_el2 == 'true' }}
     secrets: inherit
 
@@ -42,6 +52,7 @@ jobs:
     needs: build-package-rpms
     if: ${{ !cancelled() && (needs.build-package-rpms.result == 'success' || needs.build-package-rpms.result == 'skipped') }}
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
     env:
       TZ: UTC
       DESKTOP_ENVIRONMENT: ${{ github.event.inputs.desktop_environment }}
@@ -87,39 +98,37 @@ jobs:
           mkdir -p "$WORKDIR" "$ROOTFS_DIR" "$ARTIFACT_DIR"
 
       - name: Resolve package release tag
+        if: inputs.package_run_id == '' && !inputs.rebuild_package_rpms
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euxo pipefail
 
-          if [[ "${{ github.event.inputs.rebuild_package_rpms }}" == "true" ]]; then
-            package_release_tag="${{ needs.build-package-rpms.outputs.package_release_tag }}"
-          else
-            safe_kernel_tag="${KERNEL_TAG//\//-}"
-            safe_kernel_tag="${safe_kernel_tag//[^A-Za-z0-9._-]/-}"
-            profile="std"
-            if [[ "$BUILD_EL2" == "true" ]]; then
-              profile="std-el2"
-            fi
-            prefix="gaokun3-rpms-${safe_kernel_tag}-${profile}-"
+          safe_kernel_tag="${KERNEL_TAG//\//-}"
+          safe_kernel_tag="${safe_kernel_tag//[^A-Za-z0-9._-]/-}"
+          profile="std"
+          if [[ "$BUILD_EL2" == "true" ]]; then
+            profile="std-el2"
+          fi
+          prefix="gaokun3-rpms-${safe_kernel_tag}-${profile}-"
 
-            releases_json="$WORKDIR/releases.json"
-            curl -fsSL \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-              -o "$releases_json"
+          releases_json="$WORKDIR/releases.json"
+          curl -fsSL \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            -o "$releases_json"
 
-            package_release_tag="$(jq -r --arg prefix "$prefix" '.[] | select(.tag_name | startswith($prefix)) | .tag_name' "$releases_json" | head -n 1)"
-            if [[ -z "$package_release_tag" ]]; then
-              echo "no package release found for prefix ${prefix}" >&2
-              exit 1
-            fi
+          package_release_tag="$(jq -r --arg prefix "$prefix" '.[] | select(.tag_name | startswith($prefix)) | .tag_name' "$releases_json" | head -n 1)"
+          if [[ -z "$package_release_tag" ]]; then
+            echo "no package release found for prefix ${prefix}" >&2
+            exit 1
           fi
 
           echo "PACKAGE_RELEASE_TAG=$package_release_tag" >> "$GITHUB_ENV"
 
       - name: Download gaokun package RPMs
+        if: inputs.package_run_id == '' && !inputs.rebuild_package_rpms
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -150,24 +159,6 @@ jobs:
             -o "$PACKAGE_RPMS_DIR/$asset_name"
 
           manifest_path="$PACKAGE_RPMS_DIR/package-manifest.json"
-          manifest_kernel_tag="$(jq -r '.kernel_tag' "$manifest_path")"
-          manifest_build_el2="$(jq -r '.build_el2' "$manifest_path")"
-          manifest_kernel_commit="$(jq -r '.kernel_commit' "$manifest_path")"
-          if [[ "$manifest_kernel_commit" != "$KERNEL_COMMIT" ]]; then
-            echo "Package source commit does not match build.env; rebuild the packages." >&2
-            exit 1
-          fi
-
-          if [[ "$manifest_kernel_tag" != "$KERNEL_TAG" ]]; then
-            echo "package release kernel tag mismatch: expected ${KERNEL_TAG}, got ${manifest_kernel_tag}" >&2
-            exit 1
-          fi
-
-          if [[ "$BUILD_EL2" == "true" && "$manifest_build_el2" != "true" ]]; then
-            echo "package release ${PACKAGE_RELEASE_TAG} does not contain EL2 packages" >&2
-            exit 1
-          fi
-
           asset_names=(
             "$(jq -r '.kernels.standard.packages.kernel' "$manifest_path")"
             "$(jq -r '.kernels.standard.packages.kernel_modules' "$manifest_path")"
@@ -195,6 +186,39 @@ jobs:
               "$asset_url" \
               -o "$PACKAGE_RPMS_DIR/$asset_name"
           done
+
+      - name: Download package CI artifacts
+        if: inputs.package_run_id != '' || inputs.rebuild_package_rpms
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_RUN_ID: ${{ inputs.package_run_id || github.run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$PACKAGE_RUN_ID" =~ ^[0-9]+$ ]]
+          gh run download "$PACKAGE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name gaokun3-package-rpms --dir "$PACKAGE_RPMS_DIR"
+
+      - name: Check package inputs
+        run: |
+          set -euo pipefail
+          manifest_path="$PACKAGE_RPMS_DIR/package-manifest.json"
+          manifest_kernel_tag="$(jq -r '.kernel_tag' "$manifest_path")"
+          manifest_build_el2="$(jq -r '.build_el2' "$manifest_path")"
+          manifest_kernel_commit="$(jq -r '.kernel_commit' "$manifest_path")"
+          if [[ "$manifest_kernel_commit" != "$KERNEL_COMMIT" ]]; then
+            echo "Package source commit does not match build.env; rebuild the packages." >&2
+            exit 1
+          fi
+
+          if [[ "$manifest_kernel_tag" != "$KERNEL_TAG" ]]; then
+            echo "package release kernel tag mismatch: expected ${KERNEL_TAG}, got ${manifest_kernel_tag}" >&2
+            exit 1
+          fi
+
+          if [[ "$BUILD_EL2" == "true" && "$manifest_build_el2" != "true" ]]; then
+            echo "Selected packages do not contain the requested EL2 kernel" >&2
+            exit 1
+          fi
 
       - name: Bootstrap Fedora rootfs
         run: |
@@ -319,10 +343,13 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: fedora-gaokun3-build
+          if-no-files-found: error
+          retention-days: 7
           path: |
             ${{ steps.package.outputs.artifact_dir }}/${{ steps.package.outputs.package_glob }}
 
       - name: Create GitHub Release
+        if: inputs.publish_release
         uses: softprops/action-gh-release@v2.6.1
         with:
           tag_name: ${{ steps.package.outputs.tag_name }}
