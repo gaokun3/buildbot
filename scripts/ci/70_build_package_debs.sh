@@ -135,6 +135,8 @@ build_kernel_variant() {
 
   rsync -a --delete --exclude '.git' "$src_dir/" "$headers_tree/"
   rsync -a "$out_dir/" "$headers_tree/"
+  # The output Makefile points at the CI checkout; ship the portable source one.
+  install -Dm644 "$src_dir/Makefile" "$headers_tree/Makefile"
   find "$headers_tree" -type f \
     \( -name '*.o' -o -name '*.ko' -o -name '*.a' -o -name '*.cmd' -o -name '*.mod' -o -name '*.mod.c' \) \
     -delete
