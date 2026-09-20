@@ -1,6 +1,6 @@
 # gaokun3 双仓库迁移记录
 
-这是迁移候选，不能作为已验证发行版发布。当前评审入口为原仓库 PR #7；目标仓库尚未建立，工作流在目标内核提交发布前无法完成源码检出。
+这是迁移候选，不能作为已验证发行版发布。两个目标仓库已建立，内核 `gaokun3` 分支已发布下表的精确提交，buildbot 迁移位于 `next`。原仓库 PR #7 保留迁移评审记录。
 
 ## 仓库边界
 
@@ -20,7 +20,7 @@
 | Fedora / Ubuntu | 44 / 26.04 |
 | EL2 | 未设置提交；显式请求会报错 |
 
-`KERNEL_TAG` 目前只是产物命名标签，并不代表 GitHub 已存在该 tag；真正检出依据为 `KERNEL_COMMIT`。发布前需在目标仓库推送精确提交，建立不可变 tag，并保留上游 base SHA。Ubuntu rootfs 下载失败直接停止，不再回退 beta。
+`KERNEL_TAG` 目前只是产物命名标签，并不代表 GitHub 已存在该 tag；真正检出依据为 `KERNEL_COMMIT`。内核精确提交已推送；正式发布前仍需建立不可变 tag，并保留上游 base SHA。Ubuntu rootfs 下载失败直接停止，不再回退 beta。
 
 软件包清单记录内核 SHA 与 buildbot SHA；镜像组装核对内核 SHA，防止复用不同源码生成的软件包。
 
@@ -32,7 +32,7 @@
 ./build.sh kernel
 ./build.sh debs
 ./build.sh rpms
-# 候选提交尚未发布时，可使用已经恢复的本地内核仓库：
+# 也可使用提交匹配且干净的本地内核仓库：
 KERN_SRC=/absolute/path/to/linux ./build.sh kernel
 ```
 
@@ -54,4 +54,10 @@ KERN_SRC=/absolute/path/to/linux ./build.sh kernel
 
 尚未完成：完整 Image/modules 链接、DEB/RPM 打包、Fedora/Ubuntu 镜像构建及设备启动。还需检查 Fedora SELinux 与当前 AppArmor 配置的兼容性，并实测触摸、60/120 Hz、音频、无线、蓝牙、充电、USB-C、休眠唤醒、视频解码、升级和回退。
 
-先完成目标内核仓库发布和上述检查，再合并迁移 PR、启用 release。EL2 单独推进，不作为普通内核已完成的功能。
+先完成上述检查，再合并迁移 PR、发布 release。EL2 单独推进，不作为普通内核已完成的功能。
+
+## 构建验证
+
+`Validate kernel packages` 在 `next` 的构建相关改动后运行，也可手动触发。它复用现有 DEB/RPM 工作流，在原生 ARM64 runner 上编译完整 Image、modules 和 DTB，然后打包。包及源码清单保存在 Actions artifacts 中 7 天。
+
+两个打包工作流新增 `publish_release`，默认 `false`。仅显式开启时才创建 GitHub release；镜像发布流程需要下载软件包，因此明确传入 `true`。构建成功不代表设备启动和升级测试通过。

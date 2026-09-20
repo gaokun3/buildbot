@@ -4,7 +4,7 @@ English | [中文](docs/README_zh.md)
 
 Build scripts, tools, and firmware for Linux images targeting the Huawei MateBook E Go 2023 (codename `gaokun3`) based on Qualcomm Snapdragon 8cx Gen3 (`SC8280XP`).
 
-**Migration draft, not ready for release.** The target repositories are `gaokun3/linux` and `gaokun3/buildbot`. The candidate kernel commit still needs publication; EL2 is disabled pending migration. See the [migration checklist](docs/migration.md).
+**Migration draft, not ready for release.** The repositories are [gaokun3/linux](https://github.com/gaokun3/linux/tree/gaokun3) and [gaokun3/buildbot](https://github.com/gaokun3/buildbot/tree/next). The pinned kernel candidate is published; full builds and hardware validation remain required. EL2 is disabled pending migration. See the [migration checklist](docs/migration.md).
 
 `build.env` pins the kernel SHA and distribution versions. Use `./build.sh kernel|debs|rpms` locally; image assembly currently runs through CI. Drivers, DTS and defconfig belong in the downstream kernel tree.
 

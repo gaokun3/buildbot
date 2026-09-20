@@ -3,6 +3,11 @@ name: Build Package - DEBs Gaokun3
 on:
   workflow_dispatch:
     inputs:
+      publish_release:
+        description: Publish packages as a GitHub release
+        required: false
+        default: false
+        type: boolean
       build_el2:
         description: Build extra -gaokun3-el2 kernel packages
         required: true
@@ -10,6 +15,11 @@ on:
         type: boolean
   workflow_call:
     inputs:
+      publish_release:
+        description: Publish packages as a GitHub release
+        required: false
+        default: false
+        type: boolean
       build_el2:
         description: Build extra -gaokun3-el2 kernel packages
         required: false
@@ -27,6 +37,7 @@ jobs:
   build-package-debs:
     outputs:
       package_release_tag: ${{ steps.release_meta.outputs.package_release_tag }}
+    timeout-minutes: 180
     runs-on: ubuntu-24.04-arm
     env:
       TZ: UTC
@@ -122,12 +133,15 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: gaokun3-package-debs
+          if-no-files-found: error
+          retention-days: 7
           path: |
             ${{ env.ARTIFACT_DIR }}/*.deb
             ${{ env.ARTIFACT_DIR }}/package-manifest.json
             ${{ env.ARTIFACT_DIR }}/package-release-body.md
 
       - name: Publish package release
+        if: inputs.publish_release
         uses: softprops/action-gh-release@v2.6.1
         with:
           tag_name: ${{ steps.release_meta.outputs.package_release_tag }}

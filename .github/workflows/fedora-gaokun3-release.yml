@@ -34,6 +34,7 @@ jobs:
     if: ${{ github.event.inputs.rebuild_package_rpms == 'true' }}
     uses: ./.github/workflows/gaokun3-package-rpms.yml
     with:
+      publish_release: true
       build_el2: ${{ github.event.inputs.build_el2 == 'true' }}
     secrets: inherit
 
