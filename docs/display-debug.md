@@ -1,6 +1,20 @@
 # 开机花屏排查（2026-09-21）
 
-用户报告开机约 1–2 秒后花屏。以下检查针对候选内核 `1ab894b42deae74cc72cc89f2cb436534260faed`、stable 基线 `d396b05e7e39b0ed6f6d5553fbaf174228e18bdf`。尚未收到故障机日志、实际内核 SHA、最后正常的内核版本或对照测试结果，不能确认根因。此前 CI 成功只代表构建成功，该候选不能视为显示已验收。
+用户报告开机约 1–2 秒后花屏，横屏看是下半屏；禁用触摸和关闭 DSC 两项测试均无效，回忆 7.2.3 正常。以下检查针对候选内核 `1ab894b42deae74cc72cc89f2cb436534260faed`、stable 基线 `d396b05e7e39b0ed6f6d5553fbaf174228e18bdf`。尚未收到故障机日志、实际内核 SHA 或最后正常内核的构建来源，不能确认根因。此前 CI 成功只代表构建成功，该候选不能视为显示已验收。
+
+## 7.2.3 到 7.2.6：已找到匹配的回归候选
+
+通过 gregkh/linux 精确 tag 的文件 blob SHA 核对：7.2.3、7.2.4、7.2.5 的 `dsi_phy.h` 均为 `21a59d66e8dc5568cbb66eca4fea787228360d74`，`dsi_phy_7nm.c` 均为 `984a66085dfbf86c99292a9a26685bc7db02a5c8`。7.2.6 分别变成 `f5d3e806f8fd5146601e2a46fd38992c0ff1e21b` 和 `5d805a797abdb1e0930e79d978a1e4c4ebb94058`。
+
+该变化来自 stable 回移植 [5de981b7db1f](https://github.com/gregkh/linux/commit/5de981b7db1f509dfafe8e205b4d342436306e87)，对应下表中的上游 revert。主线撤回发生在 7 月，但进入此 stable 分支是在 7.2.6；不能用主线提交日期推断 7.2.3 已包含它。
+
+Gaokun3 的原生竖屏由双 DSI 分区驱动，旋转后其中一部分可能表现为上下半屏。固定半屏故障与单链路异常相符，但没有日志或寄存器证据，不能确定是哪一个控制器。
+
+独立测试分支 `test/gaokun3-pll-7.2.6` 仅在 `1ab894b42` 上重用 Neil Armstrong 的原上游 `93c97bc8d85d`。两个文件的 blob SHA 恢复为上述 7.2.3–7.2.5 的值，未引入新的驱动逻辑。原补丁作者和签署记录保留，提交附加本次排查依据；没有新增代签。
+
+本地验证：`dsi_phy_7nm.o` AArch64 `W=1` 编译通过，无警告；checkpatch 为 0 errors / 0 warnings；文件内容与旧 stable 的 blob SHA 一致。尚未实机复现或确认修复。完整 RPM/镜像验证由独立测试分支构建，正式候选 `gaokun3-next` / buildbot `next` 不因该试验自动更新。
+
+测试此镜像时恢复原始启动参数，去掉上轮临时禁用触摸、关闭 DSC 的参数，以便只对比 PLL 补丁。原补丁有已知单 DSI 回归，因此此分支只用于 Gaokun3 A/B 测试，不推广到其他机型。
 
 ## 已核对的上游和第三方改动
 
@@ -14,7 +28,7 @@
 | right recommended 0014：视频期间避免链路时钟切换 | 已有 `a94e1788b` | 已覆盖 [right PR #7](https://github.com/right-0903/linux-gaokun/pull/7) 的亮度花屏修复，不重复叠加 |
 | right recommended 0010：DSC 宽度向上取整 | 当前使用另一种计算式 | 按本机 slice_width=800、slice_count=1、8 bpp、8 bpc 计算，当前 DPU、right 0010、DSI host 都为 267；当前没有发现此处的 266/267 差异 |
 
-right 仓库核对版本为 `7463df37160bdecc3f2609d72f9a69cfa2b390e4`。本轮没有改写驱动，没有恢复已撤回的 PLL 补丁，也没有把多个候选混进测试内核。`93c97bc8d85d` 的原始代码差异也通过 apply --check，但可应用不代表正确或实机有效。
+right 仓库核对版本为 `7463df37160bdecc3f2609d72f9a69cfa2b390e4`。试验只恢复上述 PLL 补丁，没有同时加入 `20282806` 或替换 DSC/触摸实现。可应用和可编译不代表实机有效。
 
 ## 同时排除触摸初始化干扰
 
