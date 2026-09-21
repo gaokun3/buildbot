@@ -1,4 +1,4 @@
-# 内核重启审计（2026-09-20）
+# 内核重启审计（更新于 2026-09-21）
 
 目标是维护可解释的下游 Git 提交，不恢复 buildbot 中的补丁、驱动或 DTS 副本。`gaokun3-next` 是当前 Iris/GSI 审查分支；`gaokun3` 保留上一版候选，两个分支都未通过实机验收。构建使用精确 SHA。
 
@@ -60,10 +60,12 @@ Iris/GSI 候选已通过 defconfig、Gaokun3 DTB、Iris 全目录对象及 `qcom
 
 ## 发行版策略
 
-共享 defconfig 同时编入 SELinux 和 AppArmor，但 `CONFIG_LSM` 默认只有 AppArmor。新建 Fedora/Ubuntu 镜像在内核命令行中显式使用 `lsm=` 选择对应策略。Fedora 显式安装 targeted policy 和 policycoreutils，并在镜像组装末尾用 setfiles 为新建文件打标签；该步骤仍待完整镜像 CI 验证。已有系统升级沿用用户的命令行，不能据此认为旧镜像已修复；实机验收应检查 `/sys/kernel/security/lsm`，Fedora 还需确认策略加载与文件标签。
+共享 defconfig 同时编入 SELinux 和 AppArmor，但 `CONFIG_LSM` 默认只有 AppArmor。新建 Fedora/Ubuntu 镜像在内核命令行中显式使用 `lsm=` 选择对应策略。Fedora 显式安装 targeted policy 和 policycoreutils，并在镜像组装末尾用 setfiles 为新建文件打标签；该步骤已通过完整 Fedora 镜像 CI，启动后的策略加载仍需实机确认。已有系统升级沿用用户的命令行，不能据此认为旧镜像已修复；实机验收应检查 `/sys/kernel/security/lsm`，Fedora 还需确认策略加载与文件标签。
 
 ## EC 探测错误返回
 
-新增 `1ab894b42dea`：获取 enable GPIO 返回错误时立即返回 `dev_err_probe()`，避免吞掉 `-EPROBE_DEFER` 后继续注册设备。此问题来自导入的 EC enable pin 补丁。实际 probe 前段的主机故障注入已确认原版吞掉 `-EPROBE_DEFER` / `-EIO`，修复后正确返回；可选 GPIO 不存在时仍继续。EC 对象 `W=1` 构建和 checkpatch 均无警告，新 SHA 需重新完成完整 CI。
+新增 `1ab894b42dea`：获取 enable GPIO 返回错误时立即返回 `dev_err_probe()`，避免吞掉 `-EPROBE_DEFER` 后继续注册设备。此问题来自导入的 EC enable pin 补丁。实际 probe 前段的主机故障注入已确认原版吞掉 `-EPROBE_DEFER` / `-EIO`，修复后正确返回；可选 GPIO 不存在时仍继续。EC 对象 `W=1` 构建和 checkpatch 均无警告，新 SHA 已通过 [完整内核与 DEB/RPM CI](https://github.com/gaokun3/buildbot/actions/runs/35512150744)。
 
 Fedora 镜像流程先使用已通过打包的 `4a73e255` 做集成验证（[Actions 35511937857](https://github.com/gaokun3/buildbot/actions/runs/35511937857)）；这次镜像尚不包含上述 EC 修复。
+
+最终 `1ab894b42` 已通过 [Fedora 44 镜像构建](https://github.com/gaokun3/buildbot/actions/runs/35512617654)，包含上述 EC 修复，产物保存在 Actions artifacts 中。软件构建验证完成，实机测试仍按 [验收清单](hardware-checklist.md) 进行。

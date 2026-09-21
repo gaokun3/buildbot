@@ -52,7 +52,11 @@ KERN_SRC=/absolute/path/to/linux ./build.sh kernel
 
 已验证：gaokun3 defconfig 生成、内核 Kbuild 设备树编译，以及 EC、电池驱动对象交叉编译；当前 Iris 全目录对象与 SPI GENI 对象交叉编译通过；Himax 对象 W=1 构建无警告，SPI 故障注入与追踪回归测试通过；systemd 255 的实际 kernel-install / BLS 插件测试通过。
 
-上一版候选已通过完整内核与 DEB/RPM 构建，见 [内核审计](kernel-audit.md)。此前 `4a73e255` 已通过 [完整内核及 DEB/RPM CI](https://github.com/gaokun3/buildbot/actions/runs/35495880873)；随后新增 EC GPIO 探测错误返回修复，需按新 SHA 验证。Fedora/Ubuntu 镜像构建及设备启动尚未完成。新镜像已显式选择 Fedora SELinux / Ubuntu AppArmor，仍需验证策略加载，并实测触摸、60/120 Hz、音频、无线、蓝牙、充电、USB-C、休眠唤醒、视频解码、升级和回退。
+当前固定提交 `1ab894b42deae74cc72cc89f2cb436534260faed` 已通过 [完整内核及 DEB/RPM CI](https://github.com/gaokun3/buildbot/actions/runs/35512150744)，并通过 [Fedora 44 镜像构建](https://github.com/gaokun3/buildbot/actions/runs/35512617654)。Fedora 构建源码为 buildbot `8d6559b0061f3a1332ca9fb45bc1eea8441ffb5e`。两个工作流均未发布 release。
+
+[下载 Fedora 测试镜像 artifact](https://github.com/gaokun3/buildbot/actions/runs/35512617654/artifacts/10605078449)（需登录 GitHub，保留至 2026-09-27）。ZIP 内为 `fedora-44-gaokun3.img.zst`，解压后的 raw 磁盘镜像为 12 GiB。它包含 EC GPIO 探测修复，替代此前用于集成验证的 `4a73e255` 镜像。
+
+日志已确认 entry token 为 `fedora`、BLS 条目和对应 ESP 内核目录创建成功，SELinux 文件标签步骤通过。Ubuntu 完整镜像及两种发行版的设备启动仍未验证；还需实测策略加载、触摸、60/120 Hz、音频、无线、蓝牙、充电、USB-C、休眠唤醒、Iris、升级和回退。
 
 实机结果按 [验收清单](hardware-checklist.md) 记录。先完成上述检查，再合并迁移 PR、发布 release。EL2 单独推进，不作为普通内核已完成的功能。
 
