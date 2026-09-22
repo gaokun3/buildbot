@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=lib/common_image.sh
 . "$(dirname "$0")/lib/common_image.sh"
 
 : "${GAOKUN_DIR:?missing GAOKUN_DIR}"
@@ -51,15 +52,14 @@ sudo mount "${LOOP}p2" "$MNT"
 sudo mkdir -p "$MNT/boot/efi"
 sudo mount "${LOOP}p1" "$MNT/boot/efi"
 
-sudo rsync -aHAX --numeric-ids --exclude='/proc/*' --exclude='/sys/*' --exclude='/dev/*' --exclude='/run/*' "$ROOTFS_DIR/" "$MNT/"
-# The staging directory is created by the CI runner, not by an RPM.
+sudo rsync -aHAX --numeric-ids --exclude="/proc/*" --exclude="/sys/*" --exclude="/dev/*" --exclude="/run/*" "$ROOTFS_DIR/" "$MNT/"
 sudo chown root:root "$MNT"
 sudo chmod 0755 "$MNT"
 install_common_image_assets "$MNT" "$GAOKUN_DIR"
 
 sudo tee "$MNT/etc/fstab" >/dev/null <<EOF
 UUID=${ROOT_UUID}  /         ext4   errors=remount-ro,noatime  0  1
-UUID=${EFI_UUID}   /boot/efi vfat   defaults,nofail,x-systemd.device-timeout=10s  0  2
+UUID=${EFI_UUID}   /boot/efi vfat   umask=0077,shortname=winnt,nofail,x-systemd.device-timeout=10s  0  2
 EOF
 
 sudo mount --bind /dev "$MNT/dev"
@@ -70,67 +70,70 @@ sudo mount -t tmpfs tmpfs "$MNT/run"
 
 sudo chroot "$MNT" /usr/bin/env KREL="$KREL" KREL_EL2="$KREL_EL2" BUILD_EL2="$BUILD_EL2" ROOT_UUID="$ROOT_UUID" /bin/bash -euxo pipefail <<'CHROOT_EOF'
 echo "fedora" > /etc/hostname
-id -u user >/dev/null 2>&1 || useradd -m -s /bin/bash -G wheel user
-echo "user:user" | chpasswd
-mkdir -p /etc/sudoers.d
-echo "%wheel ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/wheel-nopasswd
-chmod 440 /etc/sudoers.d/wheel-nopasswd
-cat > /etc/locale.conf <<'EOF'
-LANG=zh_CN.UTF-8
-LC_MESSAGES=zh_CN.UTF-8
+
+# No account is created here. gdm runs gnome-initial-setup when no regular user
+# exists, so the first boot asks for a name and password the way stock Fedora
+# does, instead of shipping a known one.
+
+# dnf must not remove the only kernel that can boot this device:
+# protect_running_kernel matches Fedora's package names, not ours.
+cat > /etc/dnf/protected.d/kernel-gaokun3.conf <<'EOF'
+kernel-gaokun3
 EOF
 
-mkdir -p /var/lib/AccountsService/users
-cat > /var/lib/AccountsService/users/user <<'EOF'
-[User]
-Language=zh_CN.UTF-8
+# Fedora's own kernels cannot boot this device, and kernel-install would write
+# each one into the 1 GiB ESP. The rootfs does not currently pull any in, so
+# this only has to keep a later transaction from doing so.
+cat >> /etc/dnf/dnf.conf <<'EOF'
+excludepkgs=kernel,kernel-core,kernel-modules,kernel-modules-core
 EOF
+# Fedora's own image defaults, held until the user picks in Settings. Anything
+# left unset here is asked for on tty1, before gdm, on the first boot.
+systemd-firstboot --locale=en_US.UTF-8 --keymap=us --timezone=UTC
+
+mkdir -p /var/lib/AccountsService/users
 cat > /var/lib/AccountsService/users/gdm <<'EOF'
 [User]
-Language=zh_CN.UTF-8
 SystemAccount=true
 EOF
 
-install -d -m 0755 /home/user/.config
-install -Dm644 /usr/local/share/gaokun/monitors.xml /home/user/.config/monitors.xml
-chown -R user:user /home/user
-
 command -v nmcli
 command -v nmtui
-systemctl enable gdm.service NetworkManager.service sshd.service \
-  gdm-monitor-sync.service patch-nvm-bdaddr.service
+getent passwd gdm
+systemctl enable gdm.service NetworkManager.service sshd.service patch-nvm-bdaddr.service
 systemctl set-default graphical.target
-
-cat > /etc/dracut.conf.d/matebook.conf <<'MODEOF'
-hostonly="no"
-add_drivers+=" ext4 nvme phy-qcom-qmp-pcie phy-qcom-qmp-combo phy-qcom-qmp-usb phy-qcom-snps-femto-v2 usb-storage uas typec pci-pwrctrl-pwrseq ath11k ath11k_pci i2c-hid-of "
-MODEOF
 
 install -d /etc/kernel
 cat > /etc/kernel/install.conf <<'EOF'
 layout=bls
 EOF
 
-# Persist the same short token for later package and initramfs hooks.
-printf '%s\n' 'fedora' > /etc/kernel/entry-token
+# The --entry-token=os-id below only governs the calls made here. Recording it
+# makes it survive: without this file, kernel-install resolves "auto" against the
+# machine id, which exists by the time the device installs a kernel of its own,
+# and a package upgrade would write a second set of entries under a name
+# loader.conf does not point at.
+. /etc/os-release
+printf '%s\n' "$ID" > /etc/kernel/entry-token
 
 install -d /etc/kernel/install.d
 ln -sf /dev/null /etc/kernel/install.d/51-dracut-rescue.install
 
-# The shared kernel includes both major LSMs; select the distro policy.
+# The boot is verbose, and plymouth is disabled outright rather than just left
+# without a theme: with no rhgb/splash it still starts and draws its own details
+# view through DRM, which ignores fbcon=rotate:1. Only the kernel's own console
+# comes out upright on this portrait panel.
 cat > /etc/kernel/cmdline <<EOF
-root=UUID=$ROOT_UUID clk_ignore_unused pd_ignore_unused arm64.nopauth iommu.passthrough=0 iommu.strict=0 pcie_aspm.policy=powersupersave efi=noruntime fbcon=rotate:1 usbhid.quirks=0x12d1:0x10b8:0x20000000 consoleblank=0 loglevel=4 psi=1 lsm=landlock,lockdown,yama,loadpin,safesetid,selinux,integrity,bpf
+root=UUID=$ROOT_UUID clk_ignore_unused pd_ignore_unused arm64.nopauth pcie_aspm.policy=powersupersave efi=noruntime fbcon=rotate:1 usbhid.quirks=0x12d1:0x10b8:0x20000000 plymouth.enable=0 lsm=landlock,lockdown,yama,loadpin,safesetid,selinux,integrity,bpf
 EOF
 
 cat > /etc/kernel/devicetree <<'EOF'
 qcom/sc8280xp-huawei-gaokun3.dtb
 EOF
 
-dracut --force --kver "$KREL"
-if [[ "$BUILD_EL2" == "true" && -n "$KREL_EL2" ]]; then
-  dracut --force --kver "$KREL_EL2"
-fi
-
+# Generated only so the tools below have one to work with. It is reset again at
+# the end of this script, since a machine-id baked into an image would be shared
+# by every device flashed from it.
 rm -f /etc/machine-id
 systemd-machine-id-setup
 
@@ -173,17 +176,52 @@ if [[ "$BUILD_EL2" == "true" && -n "$KREL_EL2" ]]; then
     "$EL2_CMDLINE"
 fi
 
+# The editor is what makes the cmdline escape hatches reachable from the device
+# itself, selinux=0 below among them, instead of needing another machine to
+# mount the ESP.
 cat > /boot/efi/loader/loader.conf <<EOF
 default fedora-${KREL}.conf
 timeout 5
 console-mode keep
-editor no
+editor yes
 EOF
 
-# Label files created by DNF and this script before the first SELinux boot.
-# The host uses a different LSM, so ignore its non-seclabel mount list.
-setfiles -F -m -e /dev -e /proc -e /sys -e /run -e /boot/efi \
-  /etc/selinux/targeted/contexts/files/file_contexts /
+# The database was written by the builder's rpm; rebuild it with the one the
+# device will read it with, so provides resolve and dnf works on first use.
+rpm --rebuilddb
+rpm -q --whatprovides "libc.so.6()(64bit)"
+# Catch missing desktop components and boot payloads before compressing an image.
+rpm -q gdm gnome-shell gnome-initial-setup NetworkManager-tui dbus-broker
+systemctl is-enabled gdm.service NetworkManager.service
+for entry in /boot/efi/loader/entries/*.conf; do
+  while read -r key payload rest; do
+    case "$key" in
+      linux|initrd|devicetree) test -s "/boot/efi$payload" ;;
+    esac
+  done < "$entry"
+done
+rm -f /var/lib/dbus/machine-id
+ln -s /etc/machine-id /var/lib/dbus/machine-id
+
+# The rootfs is assembled on a host without SELinux, so rpm could not apply
+# file contexts. Label it here: an enforcing boot against an unlabeled root
+# fails outright. CONFIG_SECURITY_SELINUX_BOOTPARAM=y leaves selinux=0 on the
+# kernel cmdline as the escape hatch if this ever goes wrong.
+sed -i 's/^SELINUX=.*/SELINUX=enforcing/' /etc/selinux/config
+setfiles -m -e /dev -e /proc -e /sys -e /run -e /boot/efi \
+  -F /etc/selinux/targeted/contexts/files/file_contexts /
+
+# Anything that identifies this build has to go, or every device flashed from
+# the image shares it. bootctl install seeded the ESP, and systemd would carry
+# the rest forward as its own credentials and entropy.
+rm -f /boot/efi/loader/random-seed \
+  /var/lib/systemd/random-seed \
+  /var/lib/systemd/credential.secret
+
+# Last step, after everything that needed a machine-id has run. "uninitialized"
+# rather than empty: only that makes systemd generate a per-device id and treat
+# the boot as the first one.
+printf 'uninitialized\n' > /etc/machine-id
 CHROOT_EOF
 
 if [[ "$BUILD_EL2" == "true" && -n "$KREL_EL2" ]]; then

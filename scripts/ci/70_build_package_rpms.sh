@@ -69,6 +69,9 @@ build_variant_rpms() {
   local krel="$5"
   local dtb_name="$6"
 
+  local is_default_kernel="0"
+  [[ -z "$pkg_suffix" ]] && is_default_kernel="1"
+
   local kernel_pkg="kernel-gaokun3${pkg_suffix}"
   local modules_pkg="kernel-modules-gaokun3${pkg_suffix}"
   local devel_pkg="kernel-devel-gaokun3${pkg_suffix}"
@@ -136,7 +139,8 @@ EOF
     "@SOURCE_NAME@" "$kernel_tar" \
     "@KREL_VERSION@" "$krel_version" \
     "@KREL@" "$krel" \
-    "@DTB_FILE@" "$dtb_name"
+    "@DTB_FILE@" "$dtb_name" \
+    "@IS_DEFAULT_KERNEL@" "$is_default_kernel"
 
   render_spec_template \
     "$GAOKUN_DIR/packaging/rpm/kernel-modules-gaokun3.spec.in" \
@@ -187,7 +191,11 @@ build_firmware_rpm() {
 
   rm -rf "$firmware_stage"
   mkdir -p "$firmware_stage/usr/lib/firmware"
-  cp -a "$GAOKUN_DIR/firmware/." "$firmware_stage/usr/lib/firmware/"
+  mkdir -p "$firmware_stage/usr/lib/firmware/qcom/sc8280xp"
+  cp -a "$GAOKUN_DIR/firmware/qcom/sc8280xp/HUAWEI" \
+    "$firmware_stage/usr/lib/firmware/qcom/sc8280xp/"
+  ln -s HUAWEI/gaokun3/audioreach-tplg.bin \
+    "$firmware_stage/usr/lib/firmware/qcom/sc8280xp/SC8280XP-HUAWEI-GAOKUN3-tplg.bin"
 
   prepare_tarball "$firmware_tar" "$firmware_stage"
 

@@ -95,30 +95,9 @@ Language=zh_CN.UTF-8
 SystemAccount=true
 EOF
 
-install -d -m 0755 /home/user/.config
-install -Dm644 /usr/local/share/gaokun/monitors.xml /home/user/.config/monitors.xml
-chown -R user:user /home/user
-
-install -d -m 1777 -o root -g root /tmp/.X11-unix
-
-cat > /etc/systemd/system/gaokun-fix-x11-unix.service <<'EOF'
-[Unit]
-Description=Fix /tmp/.X11-unix ownership for Xwayland
-After=gdm.service
-Wants=gdm.service
-
-[Service]
-Type=oneshot
-ExecStart=/bin/sh -c 'mkdir -p /tmp/.X11-unix && chown root:root /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix'
-
-[Install]
-WantedBy=graphical.target
-EOF
-
 command -v nmcli
 command -v nmtui
 systemctl enable gdm3.service NetworkManager.service ssh.service systemd-resolved.service \
-  gaokun-fix-x11-unix.service gdm-monitor-sync.service \
   patch-nvm-bdaddr.service
 systemctl set-default graphical.target
 
@@ -237,8 +216,13 @@ cat > /boot/efi/loader/loader.conf <<EOF
 default ubuntu-${KREL}.conf
 timeout 5
 console-mode keep
-editor no
+editor yes
 EOF
+# Leave identity and entropy generation to each installed device.
+rm -f /boot/efi/loader/random-seed /var/lib/systemd/random-seed /var/lib/systemd/credential.secret
+rm -f /var/lib/dbus/machine-id
+ln -s /etc/machine-id /var/lib/dbus/machine-id
+printf 'uninitialized\n' > /etc/machine-id
 CHROOT_EOF
 
 if [[ "$BUILD_EL2" == "true" && -n "$KREL_EL2" ]]; then

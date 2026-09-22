@@ -8,6 +8,8 @@ Build scripts, tools, and firmware for Linux images targeting the Huawei MateBoo
 
 `build.env` pins the kernel SHA and distribution versions. Use `./build.sh kernel|debs|rpms` locally; image assembly currently runs through CI. Drivers, DTS and defconfig belong in the downstream kernel tree.
 
+See [rootfs rework](docs/rootfs-rework.md) for the ext4 layout and Fedora first-boot account setup.
+
 ## What is included
 
 ### Repository layout
