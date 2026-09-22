@@ -51,7 +51,10 @@ sudo mount "${LOOP}p2" "$MNT"
 sudo mkdir -p "$MNT/boot/efi"
 sudo mount "${LOOP}p1" "$MNT/boot/efi"
 
-sudo rsync -aHAX --exclude='/proc/*' --exclude='/sys/*' --exclude='/dev/*' --exclude='/run/*' "$ROOTFS_DIR/" "$MNT/"
+sudo rsync -aHAX --numeric-ids --exclude='/proc/*' --exclude='/sys/*' --exclude='/dev/*' --exclude='/run/*' "$ROOTFS_DIR/" "$MNT/"
+# Do not inherit the CI staging directory owner as the root directory owner.
+sudo chown root:root "$MNT"
+sudo chmod 0755 "$MNT"
 install_common_image_assets "$MNT" "$GAOKUN_DIR"
 
 sudo tee "$MNT/etc/fstab" >/dev/null <<EOF
@@ -112,9 +115,12 @@ ExecStart=/bin/sh -c 'mkdir -p /tmp/.X11-unix && chown root:root /tmp/.X11-unix 
 WantedBy=graphical.target
 EOF
 
-systemctl enable gdm NetworkManager ssh \
+command -v nmcli
+command -v nmtui
+systemctl enable gdm3.service NetworkManager.service ssh.service systemd-resolved.service \
   gaokun-fix-x11-unix.service gdm-monitor-sync.service \
-  patch-nvm-bdaddr.service || true
+  patch-nvm-bdaddr.service
+systemctl set-default graphical.target
 
 cat >> /etc/initramfs-tools/modules <<'MODEOF'
 # Storage and USB

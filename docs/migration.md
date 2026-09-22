@@ -16,7 +16,7 @@
 | --- | --- |
 | 上游分支 | gregkh/linux `linux-rolling-stable` |
 | 上游提交 | `d396b05e7e39b0ed6f6d5553fbaf174228e18bdf`，Merge v7.2.6 |
-| 下游提交 | `1ab894b42deae74cc72cc89f2cb436534260faed` |
+| 下游提交 | `0a95cd00a3eb3a43f04746d2b4c6c9f1c7acf485`（恢复上游双 DSI PLL 修复） |
 | Fedora / Ubuntu | 44 / 26.04 |
 | EL2 | 未设置提交；显式请求会报错 |
 
@@ -74,3 +74,17 @@ gh workflow run fedora-gaokun3-release.yml --repo gaokun3/buildbot --ref next \
 ```
 
 构建成功不代表设备启动和升级测试通过。
+
+## 2026-09-22：普通 ext4 rootfs 与启动排查
+
+用户反馈 PLL 测试内核看起来已解决花屏，TTY 可切换，但一些服务启动失败、nmtui 不可用。保留 `0a95cd00a`，本次只修改镜像构建；尚不能判断运行时服务失败的根因。
+
+两种发行版统一为 GPT + 1 GiB FAT32 ESP + 单个 ext4 根分区。`/home`、`/var` 都是根分区内的普通目录；Fedora 移除子卷创建、子卷挂载和 `rootflags=subvol=@`，initramfs 显式包含 ext4。此改变仅适用于新建镜像，不会原地转换已有 Btrfs 系统。RPM 的 initramfs 配置仍包含 btrfs 驱动以支持已有安装，不再为新镜像创建 Btrfs 分卷。
+
+已确认的问题和修正：
+
+- [PLL 测试镜像日志](https://github.com/gaokun3/buildbot/actions/runs/35627754936)安装了 NetworkManager / wifi 插件，但未安装 NetworkManager-tui。Fedora 显式安装该包，Ubuntu 显式安装 network-manager（包含 nmtui）和 systemd-resolved。
+- 两套镜像不再忽略服务 enable 的错误，明确设置 graphical.target，并在 chroot 中检查 nmcli / nmtui 存在。Ubuntu 使用 gdm3.service。
+- rootfs 复制保留数字 UID/GID，排除临时运行目录内容，并将镜像根目录所有者和模式规范为 root:root / 0755，避免继承 CI staging 目录属性。
+
+这些检查不证明服务已成功运行。旧镜像的失败原因还需要 TTY 中的 `systemctl --failed --no-pager`、`sudo journalctl -b -p warning --no-pager` 和 nmtui 的完整报错；不能把改用 ext4 等同于已修复所有启动问题。若出现 AVC 拒绝，再据实际日志修正 SELinux 标签或策略。

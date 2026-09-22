@@ -247,7 +247,7 @@ jobs:
               iputils-ping iproute2 net-tools dnsutils traceroute \
               xz-utils unzip zip bzip2 zstd p7zip-full \
               wget curl ca-certificates gnupg lsb-release \
-              ssh less file sudo
+              ssh less file sudo network-manager systemd-resolved
 
             install -d -m 0755 /etc/apt/keyrings
             wget -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg | \

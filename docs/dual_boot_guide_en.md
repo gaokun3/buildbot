@@ -56,7 +56,7 @@ Notes:
 
 - After reboot, you should enter the `systemd-boot` boot menu.
 - The menu allows selecting Windows or Linux distribution to boot.
-- After entering the Linux distribution, you can use gnome-disk or other disk tools, or commands like growpart/resize2fs/btrfs to expand the rootfs partition and filesystem to the remaining space.
+- After entering the Linux distribution, you can use gnome-disk or other disk tools, or commands like growpart/resize2fs to expand the rootfs partition and filesystem to the remaining space.
 
 ## Additional Notes (EL2 Optional)
 

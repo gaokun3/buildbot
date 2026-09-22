@@ -23,11 +23,11 @@ truncate -s "$IMAGE_SIZE" "$IMAGE_FILE"
 parted -s "$IMAGE_FILE" mklabel gpt
 parted -s "$IMAGE_FILE" mkpart EFI fat32 1MiB "${EFI_END_MIB}MiB"
 parted -s "$IMAGE_FILE" set 1 esp on
-parted -s "$IMAGE_FILE" mkpart rootfs btrfs "${EFI_END_MIB}MiB" 100%
+parted -s "$IMAGE_FILE" mkpart rootfs ext4 "${EFI_END_MIB}MiB" 100%
 
 LOOP="$(sudo losetup --show -fP "$IMAGE_FILE")"
 sudo mkfs.vfat -F32 -n EFI "${LOOP}p1"
-sudo mkfs.btrfs -f -L rootfs "${LOOP}p2"
+sudo mkfs.ext4 -L rootfs "${LOOP}p2"
 
 EFI_UUID="$(sudo blkid -s UUID -o value "${LOOP}p1")"
 ROOT_UUID="$(sudo blkid -s UUID -o value "${LOOP}p2")"
@@ -37,8 +37,6 @@ cleanup() {
   set +e
   sudo umount "$MNT/dev/pts" 2>/dev/null || true
   sudo umount "$MNT/boot/efi" 2>/dev/null || true
-  sudo umount "$MNT/var" 2>/dev/null || true
-  sudo umount "$MNT/home" 2>/dev/null || true
   sudo umount "$MNT/dev" 2>/dev/null || true
   sudo umount "$MNT/proc" 2>/dev/null || true
   sudo umount "$MNT/sys" 2>/dev/null || true
@@ -50,25 +48,17 @@ trap cleanup EXIT
 
 sudo mkdir -p "$MNT"
 sudo mount "${LOOP}p2" "$MNT"
-sudo btrfs subvolume create "$MNT/@"
-sudo btrfs subvolume create "$MNT/@home"
-sudo btrfs subvolume create "$MNT/@var"
-sudo umount "$MNT"
-sudo mount -o subvol=@ "${LOOP}p2" "$MNT"
-sudo mkdir -p "$MNT/home"
-sudo mount -o subvol=@home "${LOOP}p2" "$MNT/home"
-sudo mkdir -p "$MNT/var"
-sudo mount -o subvol=@var "${LOOP}p2" "$MNT/var"
 sudo mkdir -p "$MNT/boot/efi"
 sudo mount "${LOOP}p1" "$MNT/boot/efi"
 
-sudo rsync -aHAX "$ROOTFS_DIR/" "$MNT/"
+sudo rsync -aHAX --numeric-ids --exclude='/proc/*' --exclude='/sys/*' --exclude='/dev/*' --exclude='/run/*' "$ROOTFS_DIR/" "$MNT/"
+# The staging directory is created by the CI runner, not by an RPM.
+sudo chown root:root "$MNT"
+sudo chmod 0755 "$MNT"
 install_common_image_assets "$MNT" "$GAOKUN_DIR"
 
 sudo tee "$MNT/etc/fstab" >/dev/null <<EOF
-UUID=${ROOT_UUID}  /         btrfs  subvol=@,compress=zstd:1,ssd,noatime  0  0
-UUID=${ROOT_UUID}  /home     btrfs  subvol=@home,compress=zstd:1,ssd,noatime  0  0
-UUID=${ROOT_UUID}  /var      btrfs  subvol=@var,compress=zstd:1,ssd,noatime  0  0
+UUID=${ROOT_UUID}  /         ext4   errors=remount-ro,noatime  0  1
 UUID=${EFI_UUID}   /boot/efi vfat   defaults,nofail,x-systemd.device-timeout=10s  0  2
 EOF
 
@@ -105,12 +95,15 @@ install -d -m 0755 /home/user/.config
 install -Dm644 /usr/local/share/gaokun/monitors.xml /home/user/.config/monitors.xml
 chown -R user:user /home/user
 
-systemctl enable gdm NetworkManager sshd \
-  gdm-monitor-sync.service patch-nvm-bdaddr.service || true
+command -v nmcli
+command -v nmtui
+systemctl enable gdm.service NetworkManager.service sshd.service \
+  gdm-monitor-sync.service patch-nvm-bdaddr.service
+systemctl set-default graphical.target
 
 cat > /etc/dracut.conf.d/matebook.conf <<'MODEOF'
 hostonly="no"
-add_drivers+=" btrfs nvme phy-qcom-qmp-pcie phy-qcom-qmp-combo phy-qcom-qmp-usb phy-qcom-snps-femto-v2 usb-storage uas typec pci-pwrctrl-pwrseq ath11k ath11k_pci i2c-hid-of "
+add_drivers+=" ext4 nvme phy-qcom-qmp-pcie phy-qcom-qmp-combo phy-qcom-qmp-usb phy-qcom-snps-femto-v2 usb-storage uas typec pci-pwrctrl-pwrseq ath11k ath11k_pci i2c-hid-of "
 MODEOF
 
 install -d /etc/kernel
@@ -126,7 +119,7 @@ ln -sf /dev/null /etc/kernel/install.d/51-dracut-rescue.install
 
 # The shared kernel includes both major LSMs; select the distro policy.
 cat > /etc/kernel/cmdline <<EOF
-root=UUID=$ROOT_UUID rootflags=subvol=@ clk_ignore_unused pd_ignore_unused arm64.nopauth iommu.passthrough=0 iommu.strict=0 pcie_aspm.policy=powersupersave efi=noruntime fbcon=rotate:1 usbhid.quirks=0x12d1:0x10b8:0x20000000 consoleblank=0 loglevel=4 psi=1 lsm=landlock,lockdown,yama,loadpin,safesetid,selinux,integrity,bpf
+root=UUID=$ROOT_UUID clk_ignore_unused pd_ignore_unused arm64.nopauth iommu.passthrough=0 iommu.strict=0 pcie_aspm.policy=powersupersave efi=noruntime fbcon=rotate:1 usbhid.quirks=0x12d1:0x10b8:0x20000000 consoleblank=0 loglevel=4 psi=1 lsm=landlock,lockdown,yama,loadpin,safesetid,selinux,integrity,bpf
 EOF
 
 cat > /etc/kernel/devicetree <<'EOF'
