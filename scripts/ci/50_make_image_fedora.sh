@@ -200,8 +200,11 @@ for entry in /boot/efi/loader/entries/*.conf; do
     esac
   done < "$entry"
 done
-rm -f /var/lib/dbus/machine-id
-ln -s /etc/machine-id /var/lib/dbus/machine-id
+# /var/lib/dbus/machine-id is deliberately not created. That compatibility path
+# belongs to Fedora's dbus-daemon reference implementation, which a dbus-broker
+# image does not install, so the directory is absent and linking into it fails
+# the build. Fedora reads /etc/machine-id, which the reset at the end of this
+# script already makes per-device.
 
 # The rootfs is assembled on a host without SELinux, so rpm could not apply
 # file contexts. Label it here: an enforcing boot against an unlabeled root
