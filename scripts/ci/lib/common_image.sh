@@ -45,6 +45,8 @@ install_common_image_assets() {
   )
   local data_assets=(
     "tools/audio/sc8280xp.conf:/usr/share/alsa/ucm2/Qualcomm/sc8280xp/sc8280xp.conf"
+    "tools/audio/HUAWEI-Gaokun3.conf:/usr/share/alsa/ucm2/Qualcomm/sc8280xp/HUAWEI-Gaokun3.conf"
+    "tools/audio/51-gaokun-audio.conf:/etc/wireplumber/wireplumber.conf.d/51-gaokun-audio.conf"
     "tools/touchscreen-tuner/tune.py:/usr/local/lib/gaokun-touchscreen-tuner/tune.py"
     "tools/touchscreen-tuner/tune-icon.svg:/usr/local/lib/gaokun-touchscreen-tuner/tune-icon.svg"
     "tools/touchscreen-tuner/touchscreen-tune.desktop:/usr/share/applications/touchscreen-tune.desktop"

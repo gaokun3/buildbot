@@ -10,6 +10,11 @@ Build scripts, tools, and firmware for Linux images targeting the Huawei MateBoo
 
 See [rootfs rework](docs/rootfs-rework.md) for the ext4 layout and Fedora first-boot account setup.
 
+Gaokun3 speakers default to unity digital gain and +18 dB PA gain through the
+in-tree kernel driver and UCM boot configuration. WirePlumber uses software
+volume control. This downstream tuning is not calibrated speaker protection;
+there is no bundled driver binary or gain-switching CLI.
+
 ## What is included
 
 ### Repository layout
